@@ -66,7 +66,9 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         Singular values for negative class
 
     theta_ : float
-        Decision threshold computed as: θ = 0.5 * log(N+ / N-)
+        Decision threshold computed as weighted midpoint of class mean distances:
+        θ = (μ+ * N+ + μ- * N-) / (N+ + N-)
+        where μ+ and μ- are mean differential distances for positive and negative classes
         Compensates for class imbalance
 
     preprocessor_ : TextPreprocessor
@@ -122,7 +124,7 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         2. Partition corpus into D+ (positive class) and D- (negative class)
         3. Construct separate TF-IDF matrices X+ and X-
         4. Apply truncated SVD to each matrix: X ≈ U Σ V^T
-        5. Compute decision threshold: θ = 0.5 * log(N+ / N-)
+        5. Compute decision threshold as weighted midpoint of class mean distances
 
         Parameters
         ----------
@@ -179,17 +181,7 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         print(f"Positive class: {self.n_pos_} documents")
         print(f"Negative class: {self.n_neg_} documents")
 
-        # Step 3: Compute decision threshold
-        # θ = 0.5 * log(N+ / N-)
-        # This compensates for class imbalance
-        if self.n_pos_ > 0 and self.n_neg_ > 0:
-            self.theta_ = 0.5 * np.log(self.n_pos_ / self.n_neg_)
-        else:
-            self.theta_ = 0.0
-
-        print(f"Decision threshold θ = {self.theta_:.4f}")
-
-        # Step 4: Apply truncated SVD to each class matrix
+        # Step 3: Apply truncated SVD to each class matrix
         # Ensure k is not larger than possible dimensions
         k = min(self.n_components, min(X_pos.shape) - 1, min(X_neg.shape) - 1)
 
@@ -230,6 +222,26 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         print(f"Training complete!")
         print(f"Explained variance ratio (positive): {self.svd_pos_.explained_variance_ratio_.sum():.4f}")
         print(f"Explained variance ratio (negative): {self.svd_neg_.explained_variance_ratio_.sum():.4f}")
+
+        # Step 4: Compute optimal decision threshold based on training data
+        # Calculate distances for all training documents
+        print(f"Computing optimal decision threshold...")
+        train_distances = np.array([
+            self._compute_semantic_distance(X_tfidf[i])
+            for i in range(X_tfidf.shape[0])
+        ])
+
+        # Calculate mean distance for each class
+        mean_dist_pos = train_distances[y == 1].mean()
+        mean_dist_neg = train_distances[y == 0].mean()
+
+        # Optimal threshold is the weighted midpoint between class means
+        # This accounts for class imbalance
+        self.theta_ = (mean_dist_pos * self.n_pos_ + mean_dist_neg * self.n_neg_) / (self.n_pos_ + self.n_neg_)
+
+        print(f"Mean distance (positive class): {mean_dist_pos:.4f}")
+        print(f"Mean distance (negative class): {mean_dist_neg:.4f}")
+        print(f"Decision threshold θ = {self.theta_:.4f}")
 
         return self
 

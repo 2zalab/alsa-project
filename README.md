@@ -37,7 +37,9 @@ This enables A-LSA to capture **class-specific semantic structures** and achieve
 4. **Apply SVD** to each matrix:
    - X+ ≈ U+ Σ+ V+ᵀ
    - X- ≈ U- Σ- V-ᵀ
-5. **Compute threshold** θ = ½ log(N+/N-) to handle class imbalance
+5. **Compute threshold** θ as weighted midpoint of class mean distances:
+   - θ = (μ+ × N+ + μ- × N-) / (N+ + N-)
+   - where μ+ and μ- are mean differential distances for each class
 
 ### Classification Phase
 
