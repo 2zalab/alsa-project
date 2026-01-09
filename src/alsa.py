@@ -50,6 +50,26 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         Whether to optimize threshold by grid search on training data.
         If False, uses weighted midpoint between class mean distances.
 
+    use_cosine_distance : bool, optional (default=False)
+        Whether to use cosine distance instead of euclidean energy.
+        Cosine distance is more robust for long texts and sparse projections.
+
+    use_idf_weighting : bool, optional (default=True)
+        Whether to weight projections by singular values (IDF-like weighting).
+        Gives more importance to principal components.
+
+    adaptive_k : bool, optional (default=False)
+        Whether to automatically adjust k to reach target_variance.
+        Useful for datasets with varying complexity.
+
+    target_variance : float, optional (default=0.5)
+        Target explained variance ratio when adaptive_k is True.
+        Model will increase k until this variance is reached.
+
+    l2_alpha : float, optional (default=0.0)
+        L2 regularization strength for projections.
+        Higher values reduce overfitting but may decrease training accuracy.
+
     random_state : int, optional (default=None)
         Random seed for reproducibility.
 
@@ -104,6 +124,11 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         max_df: float = 0.95,
         normalize_energies: bool = True,
         optimize_threshold: bool = True,
+        use_cosine_distance: bool = False,
+        use_idf_weighting: bool = True,
+        adaptive_k: bool = False,
+        target_variance: float = 0.5,
+        l2_alpha: float = 0.0,
         random_state: Optional[int] = None
     ):
         self.n_components = n_components
@@ -112,6 +137,11 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         self.max_df = max_df
         self.normalize_energies = normalize_energies
         self.optimize_threshold = optimize_threshold
+        self.use_cosine_distance = use_cosine_distance
+        self.use_idf_weighting = use_idf_weighting
+        self.adaptive_k = adaptive_k
+        self.target_variance = target_variance
+        self.l2_alpha = l2_alpha
         self.random_state = random_state
 
         # Will be set during fit
@@ -128,6 +158,7 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         self.n_neg_ = 0
         self.variance_pos_ = 1.0
         self.variance_neg_ = 1.0
+        self.k_actual_ = n_components
 
     def fit(self, X: Union[List[str], np.ndarray], y: np.ndarray) -> 'AdaptiveLSA':
         """
@@ -197,15 +228,23 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
 
         # Step 3: Apply truncated SVD to each class matrix
         # Ensure k is not larger than possible dimensions
-        k = min(self.n_components, min(X_pos.shape) - 1, min(X_neg.shape) - 1)
+        k_max = min(self.n_components, min(X_pos.shape) - 1, min(X_neg.shape) - 1)
 
-        if k < self.n_components:
-            warnings.warn(
-                f"Reducing n_components from {self.n_components} to {k} "
-                f"due to small dataset size"
-            )
+        # Adaptive k selection: find k that achieves target variance
+        if self.adaptive_k:
+            print(f"Searching for optimal k (target variance: {self.target_variance:.2%})...")
+            k = self._find_optimal_k(X_pos, X_neg, self.target_variance, k_max)
+            print(f"Selected k={k} components")
+        else:
+            k = k_max
+            if k < self.n_components:
+                warnings.warn(
+                    f"Reducing n_components from {self.n_components} to {k} "
+                    f"due to small dataset size"
+                )
+            print(f"Applying SVD with k={k} components...")
 
-        print(f"Applying SVD with k={k} components...")
+        self.k_actual_ = k
 
         # SVD for positive class: X+ ≈ U+ Σ+ V+^T
         # X_pos is (n_documents_pos, n_features)
@@ -290,6 +329,55 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
 
         return self
 
+    def _find_optimal_k(self, X_pos, X_neg, target_variance: float, k_max: int) -> int:
+        """
+        Find optimal k to achieve target explained variance.
+
+        Performs binary search to find smallest k that achieves target variance.
+
+        Parameters
+        ----------
+        X_pos : sparse matrix
+            Document-term matrix for positive class
+        X_neg : sparse matrix
+            Document-term matrix for negative class
+        target_variance : float
+            Target explained variance ratio (0.0 to 1.0)
+        k_max : int
+            Maximum allowed k value
+
+        Returns
+        -------
+        k_optimal : int
+            Optimal number of components
+        """
+        # Start with small k and increase until target variance is reached
+        k_candidates = [50, 100, 150, 200, 300, 400, 500]
+        k_candidates = [k for k in k_candidates if k <= k_max]
+
+        if not k_candidates:
+            return k_max
+
+        for k in k_candidates:
+            # Quick SVD to check variance
+            svd_temp = TruncatedSVD(n_components=k, random_state=self.random_state)
+            svd_temp.fit(X_pos)
+            var_pos = svd_temp.explained_variance_ratio_.sum()
+
+            svd_temp.fit(X_neg)
+            var_neg = svd_temp.explained_variance_ratio_.sum()
+
+            avg_var = (var_pos + var_neg) / 2
+
+            print(f"  k={k}: variance={avg_var:.3f} (pos={var_pos:.3f}, neg={var_neg:.3f})")
+
+            if avg_var >= target_variance:
+                return k
+
+        # If target not reached, return maximum k
+        print(f"  Target variance {target_variance:.2%} not reached, using k={k_max}")
+        return k_max
+
     def _compute_semantic_distance(self, x_doc: np.ndarray) -> float:
         """
         Compute differential semantic distance for a single document.
@@ -321,19 +409,58 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
             x_doc = np.asarray(x_doc).ravel()
 
         # Project into positive latent space
-        # z+ = Σ+^-1 V+^T x_d where V+^T has shape (k, n_features)
-        z_pos = (self.V_pos_ @ x_doc) / self.Sigma_pos_
+        # z+ = V+^T x_d where V+^T has shape (k, n_features)
+        z_pos_raw = self.V_pos_ @ x_doc
 
         # Project into negative latent space
-        # z- = Σ-^-1 V-^T x_d where V-^T has shape (k, n_features)
-        z_neg = (self.V_neg_ @ x_doc) / self.Sigma_neg_
+        # z- = V-^T x_d where V-^T has shape (k, n_features)
+        z_neg_raw = self.V_neg_ @ x_doc
 
-        # Compute energies (squared L2 norms)
-        E_pos = np.sum(z_pos ** 2)
-        E_neg = np.sum(z_neg ** 2)
+        # Apply IDF weighting (weight by inverse of singular values)
+        if self.use_idf_weighting:
+            z_pos = z_pos_raw / self.Sigma_pos_
+            z_neg = z_neg_raw / self.Sigma_neg_
+        else:
+            z_pos = z_pos_raw
+            z_neg = z_neg_raw
+
+        # Apply L2 regularization (shrink projections)
+        if self.l2_alpha > 0:
+            z_pos = z_pos / (1 + self.l2_alpha)
+            z_neg = z_neg / (1 + self.l2_alpha)
+
+        # Compute distance based on metric
+        if self.use_cosine_distance:
+            # Cosine distance: 1 - cos(z, 0) = 1 - ||z|| / (||z|| * 1) for zero reference
+            # Since we compare to origin, this becomes the angle to origin
+            # Better: compute cosine similarity between projections
+            # Distance = how aligned the document is with the positive vs negative space
+
+            # Normalize projections
+            norm_pos = np.linalg.norm(z_pos)
+            norm_neg = np.linalg.norm(z_neg)
+
+            # Avoid division by zero
+            if norm_pos > 1e-10:
+                z_pos_normalized = z_pos / norm_pos
+            else:
+                z_pos_normalized = z_pos
+
+            if norm_neg > 1e-10:
+                z_neg_normalized = z_neg / norm_neg
+            else:
+                z_neg_normalized = z_neg
+
+            # Energy as negative cosine (higher alignment = lower energy)
+            E_pos = -norm_pos  # Negative because higher norm = stronger alignment
+            E_neg = -norm_neg
+        else:
+            # Euclidean energy (squared L2 norms)
+            E_pos = np.sum(z_pos ** 2)
+            E_neg = np.sum(z_neg ** 2)
 
         # Normalize energies by explained variance if enabled
-        if self.normalize_energies:
+        if self.normalize_energies and not self.use_cosine_distance:
             E_pos = E_pos / self.variance_pos_
             E_neg = E_neg / self.variance_neg_
 
