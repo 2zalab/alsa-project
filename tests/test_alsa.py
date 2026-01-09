@@ -83,8 +83,9 @@ def test_alsa_fit(sample_data):
     assert model.theta_ is not None
 
     # Check dimensions
-    assert model.U_pos_.shape[1] == 10
-    assert model.U_neg_.shape[1] == 10
+    # V_pos_ should have shape (k, n_features)
+    assert model.V_pos_.shape[0] == 10
+    assert model.V_neg_.shape[0] == 10
 
 
 def test_alsa_predict(sample_data):

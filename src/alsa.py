@@ -53,11 +53,11 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
     svd_neg_ : TruncatedSVD
         SVD model for negative class space
 
-    U_pos_ : ndarray of shape (n_features, n_components)
-        Left singular vectors for positive class
+    V_pos_ : ndarray of shape (n_components, n_features)
+        Right singular vectors (V^T) for positive class term space
 
-    U_neg_ : ndarray of shape (n_features, n_components)
-        Left singular vectors for negative class
+    V_neg_ : ndarray of shape (n_components, n_features)
+        Right singular vectors (V^T) for negative class term space
 
     Sigma_pos_ : ndarray of shape (n_components,)
         Singular values for positive class
@@ -103,8 +103,8 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         # Will be set during fit
         self.svd_pos_ = None
         self.svd_neg_ = None
-        self.U_pos_ = None
-        self.U_neg_ = None
+        self.V_pos_ = None
+        self.V_neg_ = None
         self.Sigma_pos_ = None
         self.Sigma_neg_ = None
         self.theta_ = 0.0
@@ -202,12 +202,14 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         print(f"Applying SVD with k={k} components...")
 
         # SVD for positive class: X+ ≈ U+ Σ+ V+^T
+        # X_pos is (n_documents_pos, n_features)
+        # After SVD, components_ gives V^T of shape (k, n_features)
         self.svd_pos_ = TruncatedSVD(
             n_components=k,
             random_state=self.random_state,
             algorithm='randomized'
         )
-        self.svd_pos_.fit(X_pos.T)  # Transpose to get term space
+        self.svd_pos_.fit(X_pos)  # Fit on document-term matrix
 
         # SVD for negative class: X- ≈ U- Σ- V-^T
         self.svd_neg_ = TruncatedSVD(
@@ -215,13 +217,12 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
             random_state=self.random_state,
             algorithm='randomized'
         )
-        self.svd_neg_.fit(X_neg.T)  # Transpose to get term space
+        self.svd_neg_.fit(X_neg)  # Fit on document-term matrix
 
-        # Extract U and Σ matrices
-        # Note: TruncatedSVD.components_ contains V^T (right singular vectors)
-        # We need U (left singular vectors) for term space
-        self.U_pos_ = self.svd_pos_.components_.T  # shape: (n_features, k)
-        self.U_neg_ = self.svd_neg_.components_.T  # shape: (n_features, k)
+        # Store components (V^T) and singular values (Σ)
+        # components_ has shape (k, n_features) - this is V^T for term space projection
+        self.V_pos_ = self.svd_pos_.components_  # shape: (k, n_features)
+        self.V_neg_ = self.svd_neg_.components_  # shape: (k, n_features)
 
         self.Sigma_pos_ = self.svd_pos_.singular_values_  # shape: (k,)
         self.Sigma_neg_ = self.svd_neg_.singular_values_  # shape: (k,)
@@ -239,8 +240,8 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         Δ_sem(d) = E- - E+ = ||z-||² - ||z+||²
 
         Where:
-        - z+ = Σ+^-1 U+^T x_d (projection into positive latent space)
-        - z- = Σ-^-1 U-^T x_d (projection into negative latent space)
+        - z+ = Σ+^-1 V+^T x_d (projection into positive latent space)
+        - z- = Σ-^-1 V-^T x_d (projection into negative latent space)
         - E+ = ||z+||² (energy in positive space)
         - E- = ||z-||² (energy in negative space)
 
@@ -261,12 +262,12 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
             x_doc = np.asarray(x_doc).ravel()
 
         # Project into positive latent space
-        # z+ = Σ+^-1 U+^T x_d
-        z_pos = (self.U_pos_.T @ x_doc) / self.Sigma_pos_
+        # z+ = Σ+^-1 V+^T x_d where V+^T has shape (k, n_features)
+        z_pos = (self.V_pos_ @ x_doc) / self.Sigma_pos_
 
         # Project into negative latent space
-        # z- = Σ-^-1 U-^T x_d
-        z_neg = (self.U_neg_.T @ x_doc) / self.Sigma_neg_
+        # z- = Σ-^-1 V-^T x_d where V-^T has shape (k, n_features)
+        z_neg = (self.V_neg_ @ x_doc) / self.Sigma_neg_
 
         # Compute energies (squared L2 norms)
         E_pos = np.sum(z_pos ** 2)
@@ -394,8 +395,9 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
                 x_doc = X_tfidf[i].ravel()
 
             # Project into both spaces
-            z_pos = (self.U_pos_.T @ x_doc) / self.Sigma_pos_
-            z_neg = (self.U_neg_.T @ x_doc) / self.Sigma_neg_
+            # V_pos_ has shape (k, n_features), x_doc has shape (n_features,)
+            z_pos = (self.V_pos_ @ x_doc) / self.Sigma_pos_
+            z_neg = (self.V_neg_ @ x_doc) / self.Sigma_neg_
 
             z_pos_list.append(z_pos)
             z_neg_list.append(z_neg)
@@ -422,8 +424,9 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         feature_names = self.preprocessor_.get_feature_names()
 
         # Get weights on first latent dimension
-        weights_pos = self.U_pos_[:, 0]
-        weights_neg = self.U_neg_[:, 0]
+        # V_pos_ has shape (k, n_features), so first dimension is V_pos_[0, :]
+        weights_pos = self.V_pos_[0, :]
+        weights_neg = self.V_neg_[0, :]
 
         # Get top terms for positive class
         top_pos_idx = np.argsort(np.abs(weights_pos))[-n_terms:][::-1]
