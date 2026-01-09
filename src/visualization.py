@@ -470,7 +470,28 @@ def save_results_table(
         with open(save_path, 'w') as f:
             f.write(latex_str)
     elif format == 'markdown':
-        md_str = results_df.to_markdown(index=False, floatfmt=".4f")
+        try:
+            # Try using pandas to_markdown (requires tabulate)
+            md_str = results_df.to_markdown(index=False, floatfmt=".4f")
+        except ImportError:
+            # Fallback: create markdown manually if tabulate is not available
+            print("Warning: 'tabulate' not installed. Creating basic markdown table.")
+
+            # Header
+            headers = results_df.columns.tolist()
+            md_str = "| " + " | ".join(str(h) for h in headers) + " |\n"
+            md_str += "| " + " | ".join(["---"] * len(headers)) + " |\n"
+
+            # Rows
+            for _, row in results_df.iterrows():
+                formatted_row = []
+                for val in row:
+                    if isinstance(val, float):
+                        formatted_row.append(f"{val:.4f}")
+                    else:
+                        formatted_row.append(str(val))
+                md_str += "| " + " | ".join(formatted_row) + " |\n"
+
         with open(save_path, 'w') as f:
             f.write(md_str)
     else:

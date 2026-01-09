@@ -36,6 +36,7 @@ setup(
         "scikit-learn>=1.0.0",
         "nltk>=3.6",
         "pandas>=1.3.0",
+        "tabulate>=0.8.9",
         "matplotlib>=3.4.0",
         "seaborn>=0.11.0",
         "tqdm>=4.62.0",
