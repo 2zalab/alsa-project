@@ -114,9 +114,12 @@ def main():
     print("\n3. Initializing models...")
     models = {}
 
-    # A-LSA
+    # A-LSA (optimized for SMS Spam: k=75, min_df=1)
     models['A-LSA'] = AdaptiveLSA(
-        n_components=N_COMPONENTS,
+        n_components=75,  # Optimized: 75 works better than 100 for short texts
+        min_df=1,  # Optimized: include rare terms for better signal
+        normalize_energies=True,
+        optimize_threshold=True,
         random_state=RANDOM_STATE
     )
 
