@@ -211,7 +211,7 @@ def plot_tsne_visualization(
         n_components=2,
         perplexity=perplexity,
         random_state=random_state,
-        n_iter=1000
+        max_iter=1000
     )
     z_2d = tsne.fit_transform(z_composite)
 
