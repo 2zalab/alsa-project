@@ -42,6 +42,14 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         Maximum document frequency for terms.
         Terms appearing in more than this fraction of documents are filtered out.
 
+    normalize_energies : bool, optional (default=True)
+        Whether to normalize energies by explained variance ratio.
+        Helps account for different scales between positive and negative spaces.
+
+    optimize_threshold : bool, optional (default=True)
+        Whether to optimize threshold by grid search on training data.
+        If False, uses weighted midpoint between class mean distances.
+
     random_state : int, optional (default=None)
         Random seed for reproducibility.
 
@@ -94,12 +102,16 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         max_features: Optional[int] = None,
         min_df: int = 2,
         max_df: float = 0.95,
+        normalize_energies: bool = True,
+        optimize_threshold: bool = True,
         random_state: Optional[int] = None
     ):
         self.n_components = n_components
         self.max_features = max_features
         self.min_df = min_df
         self.max_df = max_df
+        self.normalize_energies = normalize_energies
+        self.optimize_threshold = optimize_threshold
         self.random_state = random_state
 
         # Will be set during fit
@@ -114,6 +126,8 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         self.classes_ = None
         self.n_pos_ = 0
         self.n_neg_ = 0
+        self.variance_pos_ = 1.0
+        self.variance_neg_ = 1.0
 
     def fit(self, X: Union[List[str], np.ndarray], y: np.ndarray) -> 'AdaptiveLSA':
         """
@@ -219,9 +233,13 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         self.Sigma_pos_ = self.svd_pos_.singular_values_  # shape: (k,)
         self.Sigma_neg_ = self.svd_neg_.singular_values_  # shape: (k,)
 
+        # Store total explained variance for normalization
+        self.variance_pos_ = self.svd_pos_.explained_variance_ratio_.sum()
+        self.variance_neg_ = self.svd_neg_.explained_variance_ratio_.sum()
+
         print(f"Training complete!")
-        print(f"Explained variance ratio (positive): {self.svd_pos_.explained_variance_ratio_.sum():.4f}")
-        print(f"Explained variance ratio (negative): {self.svd_neg_.explained_variance_ratio_.sum():.4f}")
+        print(f"Explained variance ratio (positive): {self.variance_pos_:.4f}")
+        print(f"Explained variance ratio (negative): {self.variance_neg_:.4f}")
 
         # Step 4: Compute optimal decision threshold based on training data
         # Calculate distances for all training documents
@@ -235,13 +253,40 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         mean_dist_pos = train_distances[y == 1].mean()
         mean_dist_neg = train_distances[y == 0].mean()
 
-        # Optimal threshold is the weighted midpoint between class means
-        # This accounts for class imbalance
-        self.theta_ = (mean_dist_pos * self.n_pos_ + mean_dist_neg * self.n_neg_) / (self.n_pos_ + self.n_neg_)
-
         print(f"Mean distance (positive class): {mean_dist_pos:.4f}")
         print(f"Mean distance (negative class): {mean_dist_neg:.4f}")
-        print(f"Decision threshold θ = {self.theta_:.4f}")
+
+        if self.optimize_threshold:
+            # Find optimal threshold using validation holdout to avoid overfitting
+            from sklearn.model_selection import train_test_split as split_validation
+            from sklearn.metrics import f1_score
+
+            # Split training data for threshold optimization (80/20)
+            indices = np.arange(len(y))
+            train_idx, val_idx = split_validation(
+                indices, test_size=0.2, random_state=self.random_state, stratify=y
+            )
+
+            val_distances = train_distances[val_idx]
+            y_val = y[val_idx]
+
+            thresholds = np.linspace(val_distances.min(), val_distances.max(), 500)
+            best_f1 = 0
+            best_threshold = 0
+
+            for thresh in thresholds:
+                y_pred = (val_distances < thresh).astype(int)
+                f1 = f1_score(y_val, y_pred, average='macro')
+                if f1 > best_f1:
+                    best_f1 = f1
+                    best_threshold = thresh
+
+            self.theta_ = best_threshold
+            print(f"Optimized threshold θ = {self.theta_:.4f} (F1 validation: {best_f1:.4f})")
+        else:
+            # Use weighted midpoint between class means
+            self.theta_ = (mean_dist_pos * self.n_pos_ + mean_dist_neg * self.n_neg_) / (self.n_pos_ + self.n_neg_)
+            print(f"Decision threshold θ = {self.theta_:.4f} (weighted midpoint)")
 
         return self
 
@@ -256,6 +301,8 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         - z- = Σ-^-1 V-^T x_d (projection into negative latent space)
         - E+ = ||z+||² (energy in positive space)
         - E- = ||z-||² (energy in negative space)
+
+        If normalize_energies=True, energies are normalized by explained variance.
 
         Parameters
         ----------
@@ -284,6 +331,11 @@ class AdaptiveLSA(BaseEstimator, ClassifierMixin):
         # Compute energies (squared L2 norms)
         E_pos = np.sum(z_pos ** 2)
         E_neg = np.sum(z_neg ** 2)
+
+        # Normalize energies by explained variance if enabled
+        if self.normalize_energies:
+            E_pos = E_pos / self.variance_pos_
+            E_neg = E_neg / self.variance_neg_
 
         # Differential semantic distance
         delta_sem = E_neg - E_pos
