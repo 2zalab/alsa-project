@@ -28,7 +28,7 @@ def plot_sensitivity_to_k(
     f1_scores: Dict[str, List[float]],
     save_path: Optional[str] = None,
     optimal_k: int = 100,
-    figsize: Tuple[int, int] = (10, 6)
+    figsize: Tuple[int, int] = (12, 7)
 ):
     """
     Plot F1-score as a function of latent dimension k.
@@ -51,41 +51,63 @@ def plot_sensitivity_to_k(
     optimal_k : int, optional (default=100)
         Optimal k value to highlight
 
-    figsize : tuple, optional (default=(10, 6))
+    figsize : tuple, optional (default=(12, 7))
         Figure size
     """
     fig, ax = plt.subplots(figsize=figsize)
 
-    colors = plt.cm.tab10(np.linspace(0, 1, len(f1_scores)))
+    # Define distinct colors and styles for better visibility
+    colors = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D']
+    markers = ['o', 's', '^', 'D']
+    linestyles = ['-', '--', '-.', ':']
 
-    for (model_name, scores), color in zip(f1_scores.items(), colors):
+    for idx, (model_name, scores) in enumerate(f1_scores.items()):
         ax.plot(
             k_values,
             scores,
-            marker='o',
-            linewidth=2,
+            marker=markers[idx % len(markers)],
+            linewidth=2.5,
             label=model_name,
-            color=color,
-            markersize=6
+            color=colors[idx % len(colors)],
+            markersize=8,
+            linestyle=linestyles[idx % len(linestyles)],
+            markeredgecolor='white',
+            markeredgewidth=1.5
         )
 
     # Highlight optimal k
     if optimal_k in k_values:
         ax.axvline(
             optimal_k,
-            color='red',
+            color='#e74c3c',
             linestyle='--',
-            alpha=0.5,
-            linewidth=1.5,
+            alpha=0.6,
+            linewidth=2,
             label=f'Optimal k={optimal_k}'
         )
 
-    ax.set_xlabel('Latent Dimension (k)', fontsize=12, fontweight='bold')
-    ax.set_ylabel('F1-score (macro)', fontsize=12, fontweight='bold')
-    ax.set_title('Sensitivity to Latent Dimension k', fontsize=14, fontweight='bold')
-    ax.legend(loc='best', frameon=True, shadow=True)
-    ax.grid(True, alpha=0.3)
-    ax.set_ylim([0.80, 0.95])
+    ax.set_xlabel('Latent Dimension (k)', fontsize=13, fontweight='bold')
+    ax.set_ylabel('F1-score (macro)', fontsize=13, fontweight='bold')
+    ax.set_title('Sensitivity to Latent Dimension k', fontsize=15, fontweight='bold', pad=15)
+
+    # Improved legend
+    ax.legend(
+        loc='lower left',
+        frameon=True,
+        shadow=True,
+        fontsize=11,
+        framealpha=0.95,
+        edgecolor='black'
+    )
+
+    # Enhanced grid
+    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.7)
+
+    # Automatic Y-axis limits with padding
+    all_scores = [score for scores in f1_scores.values() for score in scores]
+    y_min = min(all_scores) - 0.02
+    y_max = max(all_scores) + 0.03
+    ax.set_ylim([y_min, y_max])
 
     plt.tight_layout()
 
@@ -102,7 +124,7 @@ def plot_imbalance_impact(
     imbalance_ratios: List[float],
     f1_scores: Dict[str, List[float]],
     save_path: Optional[str] = None,
-    figsize: Tuple[int, int] = (10, 6)
+    figsize: Tuple[int, int] = (12, 7)
 ):
     """
     Plot impact of class imbalance on model performance.
@@ -120,7 +142,7 @@ def plot_imbalance_impact(
     save_path : str, optional (default=None)
         Path to save figure
 
-    figsize : tuple, optional (default=(10, 6))
+    figsize : tuple, optional (default=(12, 7))
         Figure size
     """
     fig, ax = plt.subplots(figsize=figsize)
@@ -128,25 +150,47 @@ def plot_imbalance_impact(
     # Convert ratios to readable labels
     ratio_labels = [f"1:{int(1/r)}" if r < 1 else "1:1" for r in imbalance_ratios]
 
-    colors = plt.cm.tab10(np.linspace(0, 1, len(f1_scores)))
+    # Define distinct colors and styles for better visibility
+    colors = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D']
+    markers = ['o', 's', '^', 'D']
+    linestyles = ['-', '--', '-.', ':']
 
-    for (model_name, scores), color in zip(f1_scores.items(), colors):
+    for idx, (model_name, scores) in enumerate(f1_scores.items()):
         ax.plot(
             ratio_labels,
             scores,
-            marker='o',
-            linewidth=2,
+            marker=markers[idx % len(markers)],
+            linewidth=2.5,
             label=model_name,
-            color=color,
-            markersize=6
+            color=colors[idx % len(colors)],
+            markersize=8,
+            linestyle=linestyles[idx % len(linestyles)],
+            markeredgecolor='white',
+            markeredgewidth=1.5
         )
 
-    ax.set_xlabel('Class Imbalance Ratio (Positive:Negative)', fontsize=12, fontweight='bold')
-    ax.set_ylabel('F1-score (macro)', fontsize=12, fontweight='bold')
-    ax.set_title('Impact of Class Imbalance on Performance', fontsize=14, fontweight='bold')
-    ax.legend(loc='best', frameon=True, shadow=True)
-    ax.grid(True, alpha=0.3)
-    ax.set_ylim([0.75, 0.95])
+    ax.set_xlabel('Class Imbalance Ratio (Positive:Negative)', fontsize=13, fontweight='bold')
+    ax.set_ylabel('F1-score (macro)', fontsize=13, fontweight='bold')
+    ax.set_title('Impact of Class Imbalance on Performance', fontsize=15, fontweight='bold', pad=15)
+
+    # Improved legend
+    ax.legend(
+        loc='lower left',
+        frameon=True,
+        shadow=True,
+        fontsize=11,
+        framealpha=0.95,
+        edgecolor='black'
+    )
+
+    # Enhanced grid
+    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.7)
+
+    # Automatic Y-axis limits with padding
+    all_scores = [score for scores in f1_scores.values() for score in scores]
+    y_min = min(all_scores) - 0.02
+    y_max = max(all_scores) + 0.03
+    ax.set_ylim([y_min, y_max])
 
     plt.tight_layout()
 
@@ -214,35 +258,47 @@ def plot_tsne_visualization(
     )
     z_2d = tsne.fit_transform(z_composite)
 
-    # Plot
+    # Plot with improved visibility
     fig, ax = plt.subplots(figsize=figsize)
 
     if class_names is None:
         class_names = ['Negative', 'Positive']
 
+    # Define distinct colors and markers for better visibility
+    colors = ['#e74c3c', '#3498db']  # Red and blue
+    markers = ['s', 'o']  # Square for class 0, circle for class 1
+
     # Plot each class
     for class_idx, class_name in enumerate(class_names):
         mask = (y_true == class_idx)
-        marker = 'o' if class_idx == 1 else 's'  # Circle for positive, square for negative
-        color = 'blue' if class_idx == 1 else 'red'
 
         ax.scatter(
             z_2d[mask, 0],
             z_2d[mask, 1],
-            c=color,
-            marker=marker,
-            s=50,
-            alpha=0.6,
+            c=colors[class_idx],
+            marker=markers[class_idx],
+            s=80,  # Larger markers for better visibility
+            alpha=0.7,  # Slightly more opaque
             label=class_name,
-            edgecolors='black',
-            linewidth=0.5
+            edgecolors='white',  # White edge for better contrast
+            linewidth=1.0
         )
 
-    ax.set_xlabel('t-SNE Dimension 1', fontsize=12, fontweight='bold')
-    ax.set_ylabel('t-SNE Dimension 2', fontsize=12, fontweight='bold')
-    ax.set_title('t-SNE Visualization of Latent Space Separability', fontsize=14, fontweight='bold')
-    ax.legend(loc='best', frameon=True, shadow=True, fontsize=11)
-    ax.grid(True, alpha=0.2)
+    ax.set_xlabel('t-SNE Dimension 1', fontsize=13, fontweight='bold')
+    ax.set_ylabel('t-SNE Dimension 2', fontsize=13, fontweight='bold')
+    ax.set_title('t-SNE Visualization of Latent Space Separability', fontsize=15, fontweight='bold', pad=15)
+
+    # Place legend in lower right for better visibility
+    ax.legend(
+        loc='lower right',
+        frameon=True,
+        shadow=True,
+        fontsize=12,
+        markerscale=1.5,
+        framealpha=0.95,
+        edgecolor='black'
+    )
+    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
 
     plt.tight_layout()
 
