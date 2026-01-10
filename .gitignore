@@ -86,16 +86,16 @@ data/sms_spam/SMSSpamCollection
 data/sms_spam/*.txt
 data/imdb/
 data/20newsgroups/
-*.csv
+#*.csv
 *.tsv
 *.json
 *.pkl
 *.pickle
 
 # Results (generated outputs)
-results/tables/*
+#results/tables/*
 !results/tables/.gitkeep
-results/figures/*
+#results/figures/*
 !results/figures/.gitkeep
 
 # Model checkpoints
