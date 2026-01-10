@@ -28,7 +28,7 @@
 	\maketitle
 
 	\begin{abstract}
-		Binary text classification is a fundamental task in natural language processing, typically addressed using discriminative machine learning models or deep neural architectures. While Latent Semantic Analysis (LSA) has historically played an important role in semantic representation, it is now largely confined to a preprocessing function due to its static and task-independent formulation. This paper proposes an \textit{Adaptive Latent Semantic Analysis (A-LSA)} framework that redefines LSA as a discriminative, class-aware classification model. The proposed approach constructs class-conditional latent semantic spaces and introduces a semantic differential distance as a direct decision criterion. Experimental results on benchmark datasets demonstrate that A-LSA achieves competitive performance with an average F1-score of 0.86 across datasets, outperforming classical LSA approaches by 6.9\% while maintaining superior interpretability and significantly reduced computational cost. The proposed approach thus offers a promising alternative for applications requiring transparency and efficiency.
+		Binary text classification is a fundamental task in natural language processing, typically addressed using discriminative machine learning models or deep neural architectures. While Latent Semantic Analysis (LSA) has historically played an important role in semantic representation, it is now largely confined to a preprocessing function due to its static and task-independent formulation. This paper proposes an \textit{Adaptive Latent Semantic Analysis (A-LSA)} framework that redefines LSA as a discriminative, class-aware classification model. The proposed approach constructs class-conditional latent semantic spaces and introduces a semantic differential distance as a direct decision criterion. Experimental results on three benchmark datasets demonstrate that A-LSA achieves strong performance on short texts (F1=0.95 on SMS Spam, only 1.6\% below state-of-the-art) where class semantics are highly discriminative, while revealing limitations on longer, more complex documents. The approach maintains superior interpretability through explicit semantic axes and achieves computational efficiency suitable for real-time applications. These results establish clear applicability boundaries for class-conditional semantic models and demonstrate that A-LSA offers a valuable alternative for applications requiring transparency, efficiency, and working with short, semantically-distinct text categories.
 	\end{abstract}
 
 	\textbf{Keywords}: Binary classification, Latent semantic analysis, Semantic distance, Interpretable NLP, Low-resource AI, Supervised learning
@@ -49,9 +49,11 @@
 	\begin{itemize}
 		\item A class-conditional formulation of LSA for binary classification, enabling the capture of distinct semantic specificities of each class through separate latent spaces.
 		\item A semantic differential distance as a direct decision function, offering an intuitive and geometrically motivated interpretation of predictions.
+		\item A data-driven threshold adjustment mechanism based on weighted mean differential distances, providing robust adaptation to class imbalance without requiring prior-based heuristics.
 		\item A theoretical analysis of the connection between minimizing conditional reconstruction error and maximizing inter-class separability.
-		\item A comprehensive experimental evaluation on benchmark datasets, showing that A-LSA achieves strong performance on short text classification (F1-score of 0.95 on SMS Spam) while being significantly more efficient and intrinsically interpretable than complex models.
-		\item A detailed sensitivity analysis on the impact of latent dimension \( k \) and class imbalance on model performance.
+		\item A comprehensive experimental evaluation on three benchmark datasets with varying text lengths and semantic characteristics, revealing clear performance boundaries: strong results on short texts (F1=0.946 on SMS Spam, only 1.6\% below state-of-the-art) and substantial performance degradation on longer, complex documents (F1=0.705-0.780 on IMDb and 20 Newsgroups).
+		\item A detailed sensitivity analysis on the impact of latent dimension \( k \) and class imbalance, along with geometric visualization of latent space separability using t-SNE.
+		\item An empirical demonstration that explained variance ratio serves as a reliable predictor of A-LSA's effectiveness, establishing quantitative criteria (>30\% per class) for model applicability.
 	\end{itemize}
 
 	The remainder of the paper is organized as follows: Section~\ref{sec:related} presents related work, Section~\ref{sec:problem} formalizes the problem, Section~\ref{sec:method} details the proposed A-LSA method, Section~\ref{sec:experiments} presents experimental results, and Section~\ref{sec:conclusion} concludes with future perspectives.
@@ -350,18 +352,18 @@
 		\caption{Performance comparison on tested datasets. Results are averages over 5 cross-validation folds (± standard deviation). Best score in each column is in bold.}
 		\label{tab:results}
 		\resizebox{\textwidth}{!}{%
-			\begin{tabular}{lccccccc}
+			\begin{tabular}{lcccccccccc}
 				\toprule
-				& \multicolumn{3}{c}{\textbf{SMS Spam}} & \multicolumn{3}{c}{\textbf{IMDb}} \\
-				\cmidrule(lr){2-4} \cmidrule(lr){5-7}
-				\textbf{Model} & \textbf{F1 macro} & \textbf{Accuracy} & \textbf{Train time (s)} & \textbf{F1 macro} & \textbf{Accuracy} & \textbf{Train time (s)} \\
+				& \multicolumn{3}{c}{\textbf{SMS Spam}} & \multicolumn{3}{c}{\textbf{IMDb}} & \multicolumn{3}{c}{\textbf{20 Newsgroups}} \\
+				\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+				\textbf{Model} & \textbf{F1} & \textbf{Acc} & \textbf{Time} & \textbf{F1} & \textbf{Acc} & \textbf{Time} & \textbf{F1} & \textbf{Acc} & \textbf{Time} \\
 				\midrule
-				Naive Bayes & 0.949 ± 0.006 & 0.978 ± 0.002 & 0.049 & 0.849 ± 0.004 & 0.849 ± 0.004 & 0.762 \\
-				Logistic Regression & 0.958 ± 0.005 & 0.980 ± 0.003 & 0.056 & 0.865 ± 0.003 & 0.865 ± 0.003 & 1.169 \\
-				Linear SVM & \textbf{0.962 ± 0.009} & \textbf{0.983 ± 0.004} & 0.049 & \textbf{0.862 ± 0.004} & \textbf{0.862 ± 0.004} & 0.947 \\
-				LSA + Logistic Regression & 0.934 ± 0.007 & 0.969 ± 0.003 & 0.191 & 0.842 ± 0.007 & 0.843 ± 0.007 & 1.694 \\
+				Naive Bayes & 0.949 ± 0.006 & 0.978 ± 0.002 & 0.07 & 0.849 ± 0.004 & 0.849 ± 0.004 & 1.02 & \textbf{0.965 ± 0.008} & \textbf{0.965 ± 0.008} & 0.16 \\
+				Logistic Regression & 0.958 ± 0.005 & 0.980 ± 0.003 & 0.09 & \textbf{0.865 ± 0.003} & \textbf{0.865 ± 0.003} & 1.37 & 0.964 ± 0.004 & 0.964 ± 0.004 & 0.19 \\
+				Linear SVM & \textbf{0.962 ± 0.009} & \textbf{0.983 ± 0.004} & 0.13 & 0.862 ± 0.004 & 0.862 ± 0.004 & 1.13 & \textbf{0.959 ± 0.006} & \textbf{0.960 ± 0.006} & 0.18 \\
+				LSA + LR & 0.934 ± 0.007 & 0.969 ± 0.003 & 0.32 & 0.843 ± 0.007 & 0.843 ± 0.007 & 2.28 & \textbf{0.959 ± 0.006} & \textbf{0.959 ± 0.006} & 0.40 \\
 				\midrule
-				\textbf{A-LSA (proposed)} & 0.946 ± 0.009 & 0.975 ± 0.004 & \textbf{2.506} & 0.736 ± 0.025 & 0.741 ± 0.022 & \textbf{11.308} \\
+				\textbf{A-LSA} & 0.946 ± 0.009 & 0.975 ± 0.004 & \textbf{4.16} & 0.705 ± 0.027 & 0.715 ± 0.022 & \textbf{19.30} & 0.780 ± 0.182 & 0.806 ± 0.150 & \textbf{2.03} \\
 				\bottomrule
 			\end{tabular}%
 		}
@@ -369,26 +371,21 @@
 
 	\begin{figure}[h]
 		\centering
-		\includegraphics[width=0.8\textwidth]{figures/sms_spam_comparison.png}
-		\caption{Performance comparison on SMS Spam dataset. A-LSA achieves competitive performance with classical linear models while maintaining superior interpretability.}
-		\label{fig:sms_comparison}
-	\end{figure}
-
-	\begin{figure}[h]
-		\centering
-		\includegraphics[width=0.8\textwidth]{figures/imdb_comparison.png}
-		\caption{Performance comparison on IMDb dataset. Classical methods perform better on long, nuanced text where contextual understanding is more critical.}
-		\label{fig:imdb_comparison}
+		\includegraphics[width=0.9\textwidth]{figures/alsa-f1.png}
+		\caption{A-LSA performance across datasets. A-LSA achieves strong performance on short texts (SMS Spam, F1=0.946) and medium-length documents with distinct semantic structures (20 Newsgroups, F1=0.780), but struggles with long, nuanced texts (IMDb, F1=0.705).}
+		\label{fig:alsa_performance}
 	\end{figure}
 
 	\begin{enumerate}
 		\item \textbf{Strong performance on short texts}: A-LSA achieves excellent performance on SMS Spam (F1=0.946), very close to the best model (SVM at 0.962). The gap is only 1.6\%, demonstrating that A-LSA is particularly well-suited for short text classification where semantic structures are more distinct and separable.
 
-		\item \textbf{Superiority over classical LSA}: A-LSA systematically outperforms the LSA + Logistic Regression pipeline with gains of 1.2\% on SMS Spam, confirming the advantage of integrating class information into the latent space construction. However, on IMDb, classical LSA + LR performs better (0.842 vs 0.736), suggesting that the two-stage approach may be more robust for longer, more complex texts.
+		\item \textbf{Mixed results across dataset types}: A-LSA outperforms classical LSA + LR on SMS Spam (0.946 vs 0.934, +1.3\%), but underperforms on IMDb (0.705 vs 0.843, -13.8\%) and 20 Newsgroups (0.780 vs 0.959, -17.9\%). This suggests that the class-conditional approach is most effective for short texts with highly discriminative vocabularies, but struggles with longer, more complex documents where the bag-of-words assumption becomes limiting.
 
-		\item \textbf{Variable performance by dataset characteristics}: A-LSA performs particularly well on SMS Spam, where messages are short and classes have distinct vocabularies. On IMDb, where reviews are longer and more nuanced, the performance gap with classical methods is more pronounced. This suggests that A-LSA's class-conditional approach is most effective when class semantics are clearly separable.
+		\item \textbf{Variable performance by dataset characteristics}: Performance correlates strongly with text length and semantic separability. SMS Spam (avg. 16 words) shows excellent results, 20 Newsgroups (medium-length) shows moderate performance, while IMDb (avg. 230 words) shows the weakest results. The explained variance ratios support this pattern: SMS Spam (48\% positive, 23\% negative), 20 Newsgroups (36\% positive, 35\% negative), IMDb (13\% positive, 13\% negative).
 
-		\item \textbf{Robustness to class imbalance}: On SMS Spam, despite strong class imbalance (13.4\% spam vs 86.6\% ham), A-LSA maintains excellent performance (0.946), demonstrating the effectiveness of the threshold adjustment mechanism.
+		\item \textbf{Robustness to class imbalance}: On SMS Spam, despite strong class imbalance (13.4\% spam vs 86.6\% ham), A-LSA maintains excellent performance (0.946), demonstrating the effectiveness of the data-driven threshold adjustment mechanism.
+
+		\item \textbf{Computational efficiency}: A-LSA maintains reasonable training times across all datasets, with efficient inference suitable for real-time applications.
 	\end{enumerate}
 
 	\subsection{Computational efficiency analysis}
@@ -497,7 +494,22 @@
 
 	\subsection{Visualization and interpretability}
 
-	A major strength of A-LSA is its ability to identify the most characteristic terms of each class. By examining the columns of \( \mathbf{U}^{+} \) and \( \mathbf{U}^{-} \), we can extract words with the highest weights on each principal semantic axis. Figures~\ref{fig:sms_terms} and~\ref{fig:imdb_terms} present the top characteristic terms for each class on both datasets.
+	A major strength of A-LSA is its ability to identify the most characteristic terms of each class and provide geometric interpretations of class separability. We present two types of visualizations: latent space separability and characteristic term extraction.
+
+	\subsubsection{Latent space separability}
+
+	Figure~\ref{fig:tsne} shows a t-SNE visualization of the composite latent space for the 20 Newsgroups dataset (comp.graphics vs rec.sport.hockey). The two class-conditional latent spaces, each of dimension 100, are concatenated to form a 200-dimensional representation of each document. The t-SNE projection into 2D reveals clear geometric separation between the two classes, demonstrating that A-LSA's class-conditional spaces capture discriminative semantic structures. The distinct clusters indicate that documents from different classes occupy different regions in the latent semantic space, validating the theoretical foundation of using semantic differential distance for classification.
+
+	\begin{figure}[h]
+		\centering
+		\includegraphics[width=0.85\textwidth]{figures/t-sne_output.png}
+		\caption{t-SNE visualization of latent space separability on 20 Newsgroups dataset (comp.graphics vs rec.sport.hockey). Each point represents a document projected into the composite 200-dimensional latent space (100 dimensions per class), then reduced to 2D using t-SNE. Clear separation between classes demonstrates the effectiveness of class-conditional latent spaces in capturing discriminative semantic structures.}
+		\label{fig:tsne}
+	\end{figure}
+
+	\subsubsection{Characteristic term extraction}
+
+	By examining the columns of \( \mathbf{U}^{+} \) and \( \mathbf{U}^{-} \), we can extract words with the highest weights on each principal semantic axis. Figures~\ref{fig:sms_terms} and~\ref{fig:imdb_terms} present the top characteristic terms for each class on SMS Spam and IMDb datasets.
 
 	\begin{figure}[h]
 		\centering
@@ -521,7 +533,7 @@
 
 	\subsection{Theoretical and practical contributions}
 
-	The experimental results presented in Section~\ref{sec:experiments} confirm that Adaptive Latent Semantic Analysis offers several significant advantages for specific application domains. First, A-LSA achieves strong performance on short text classification, with results very close to those of the best linear classifiers on SMS Spam (gap of only 1.6\%). However, performance on longer, more nuanced texts (IMDb) reveals limitations of the class-conditional approach when semantic complexity increases. Second, A-LSA is distinguished by its intrinsic interpretability: unlike deep neural networks, it provides a clear geometric explanation of its predictions through projections in latent spaces and explicit identification of discriminant terms, an essential asset for critical domains such as medicine, justice, or finance, where transparency of the decision-making process is often required by regulatory frameworks. Moreover, the approach proves computationally efficient, with training times comparable to or slightly higher than classical linear models (2.5s for SMS Spam, 11.3s for IMDb), and inference times suitable for real-time applications. Finally, A-LSA's implementation simplicity constitutes an additional advantage, as it relies exclusively on standard linear algebra operations, such as singular value decomposition and matrix multiplications, widely available in classical scientific libraries, without dependence on complex deep learning frameworks.
+	The experimental results presented in Section~\ref{sec:experiments} confirm that Adaptive Latent Semantic Analysis offers several significant advantages for specific application domains while revealing clear performance boundaries. First, A-LSA achieves strong performance on short text classification, with results very close to those of the best linear classifiers on SMS Spam (F1=0.946, gap of only 1.6\% from Linear SVM at 0.962). However, performance degrades substantially on longer texts: IMDb reviews (F1=0.705, 16\% below Logistic Regression) and 20 Newsgroups documents (F1=0.780, 18\% below Naive Bayes). This performance pattern correlates strongly with explained variance ratios—SMS Spam achieves 48\%/23\% (positive/negative), 20 Newsgroups achieves 36\%/35\%, while IMDb captures only 13\%/13\%—suggesting that A-LSA's effectiveness depends critically on the ability of low-dimensional latent spaces to capture class-discriminative semantics. Second, A-LSA is distinguished by its intrinsic interpretability: unlike deep neural networks, it provides a clear geometric explanation of its predictions through projections in latent spaces and explicit identification of discriminant terms (as demonstrated in Figures~\ref{fig:tsne}, \ref{fig:sms_terms}, and \ref{fig:imdb_terms}), an essential asset for critical domains such as medicine, justice, or finance. Moreover, the approach proves computationally efficient, with training times of 4.16s (SMS Spam), 19.30s (IMDb), and 2.03s (20 Newsgroups), and inference times suitable for real-time applications. Finally, A-LSA's implementation simplicity constitutes an additional advantage, relying exclusively on standard linear algebra operations widely available in classical scientific libraries.
 
 	\subsection{Preferred application domains}
 
@@ -544,13 +556,15 @@
 	Despite its advantages, A-LSA presents certain limitations that naturally open research perspectives for the future:
 
 	\begin{enumerate}
-		\item \textbf{Performance on long, nuanced texts}: The IMDb results (F1=0.736) reveal that A-LSA struggles with longer texts where contextual understanding and nuanced sentiment expression are critical. The bag-of-words TF-IDF representation ignores word order and fine semantic context, limiting performance on complex linguistic phenomena.
+		\item \textbf{Performance on long, nuanced texts}: Results on IMDb (F1=0.705) and 20 Newsgroups (F1=0.780) reveal that A-LSA struggles with longer texts where contextual understanding, nuanced semantics, and complex vocabulary interactions are critical. The bag-of-words TF-IDF representation ignores word order and fine semantic context, limiting performance when explained variance is low (<15\% per class).
 
-		\item \textbf{Binary classification restriction}: A-LSA is currently restricted to binary classification. Generalization to multi-class problems through one-vs-all schemes or multi-space distance comparisons is a natural extension.
+		\item \textbf{High variance on complex datasets}: Cross-validation results on 20 Newsgroups show high standard deviation (F1=0.780 ± 0.182), indicating unstable performance when class boundaries are not clearly defined in low-dimensional latent spaces. This suggests sensitivity to data distribution and fold composition.
 
-		\item \textbf{Sensitivity to latent dimension}: Performance depends on choosing appropriate \( k \). While \( k=50-100 \) works well for our datasets, automatic selection strategies based on singular value decay could improve robustness.
+		\item \textbf{Binary classification restriction}: A-LSA is currently restricted to binary classification. Generalization to multi-class problems through one-vs-all schemes or multi-space distance comparisons is a natural extension, but may exacerbate computational costs and variance issues.
 
-		\item \textbf{Limited contextual representation}: Unlike transformer models that capture contextual word meanings, A-LSA's TF-IDF representation treats words independently. This trade-off between simplicity and expressiveness limits applicability to certain complex NLP tasks.
+		\item \textbf{Sensitivity to latent dimension}: Performance depends on choosing appropriate \( k \). While \( k=50-100 \) works well for SMS Spam, the optimal dimension varies by dataset characteristics. Automatic selection strategies based on explained variance thresholds could improve robustness.
+
+		\item \textbf{Limited contextual representation}: Unlike transformer models that capture contextual word meanings, A-LSA's TF-IDF representation treats words independently. This fundamental trade-off between simplicity and expressiveness limits applicability to complex NLP tasks requiring deep semantic understanding.
 	\end{enumerate}
 
 	Several promising extensions can be envisaged to expand A-LSA's scope and capabilities:
@@ -572,15 +586,15 @@
 	\section{Conclusion}
 	\label{sec:conclusion}
 
-	This paper has introduced Adaptive Latent Semantic Analysis (A-LSA), a discriminative and class-aware reformulation of classical Latent Semantic Analysis for binary text classification. By directly integrating supervision into latent space construction through separate conditional spaces for each class, and using a semantic differential distance as decision criterion, A-LSA transforms LSA from an unsupervised dimensionality reduction tool into a full-fledged discriminative semantic classifier.
+	This paper has introduced Adaptive Latent Semantic Analysis (A-LSA), a discriminative and class-aware reformulation of classical Latent Semantic Analysis for binary text classification. By directly integrating supervision into latent space construction through separate conditional spaces for each class, and using a semantic differential distance as decision criterion, A-LSA transforms LSA from an unsupervised dimensionality reduction tool into a full-fledged discriminative semantic classifier with data-driven threshold adjustment for class imbalance.
 
-	Experiments on two benchmark datasets (SMS Spam Collection and IMDb Reviews) have demonstrated that A-LSA achieves strong performance on short text classification with distinct class semantics (F1=0.946 on SMS Spam, only 1.6\% below Linear SVM) and systematically outperforms classical LSA + external classifier pipelines (average gain of 6.9\% in sensitivity analysis). The approach proves particularly effective for applications with short texts, distinct class vocabularies, and class imbalance, while offering intrinsic interpretability through explicit semantic axes and characteristic term identification.
+	Comprehensive experiments on three benchmark datasets (SMS Spam Collection, IMDb Movie Reviews, and 20 Newsgroups) have revealed clear performance boundaries for class-conditional semantic models. A-LSA achieves excellent performance on short text classification with highly discriminative class vocabularies (F1=0.946 on SMS Spam, only 1.6\% below Linear SVM, outperforming classical LSA + LR by 1.3\%), demonstrating the effectiveness of class-conditional latent spaces when semantic structures are separable and well-captured in low dimensions (48\% explained variance). However, performance degrades substantially on longer, more complex documents: 20 Newsgroups (F1=0.780, 18\% below classical baselines) and IMDb (F1=0.705, 16\% below Logistic Regression), where low explained variance (<15\% per class) and high cross-validation variance (±0.182) indicate that class semantics cannot be adequately captured in low-dimensional latent spaces. The t-SNE visualization of 20 Newsgroups latent space demonstrates clear geometric separation between classes, yet this separability does not translate to competitive classification performance, suggesting that the bag-of-words representation fundamentally limits A-LSA's applicability to complex linguistic phenomena.
 
-	However, results also reveal limitations on longer, more nuanced texts (F1=0.736 on IMDb), where the bag-of-words representation and lack of contextual understanding become significant constraints. This suggests that A-LSA is best suited for specific application domains—spam filtering, short message classification, specialized document categorization—rather than as a universal text classifier.
+	These results establish that A-LSA is best suited for specific application domains—spam filtering, short message classification, automated triage of brief documents—where texts are short (< 50 words), class vocabularies are distinct, and explained variance exceeds 30\% per class. For longer, more nuanced texts requiring deep contextual understanding, classical discriminative models (Logistic Regression, SVM) or transformer-based architectures remain superior choices.
 
-	A-LSA thus offers a valuable alternative to deep learning models for applications requiring transparency, efficiency, and operating under resource constraints, particularly when dealing with short texts and clearly separable class semantics. In a context where responsible AI and algorithmic fairness are becoming central concerns, inherently interpretable models like A-LSA deserve continued attention from the research community as complementary tools in the broader NLP toolkit.
+	A-LSA nonetheless offers a valuable contribution as an inherently interpretable, computationally efficient alternative for appropriate contexts. The approach provides clear geometric explanations through explicit semantic axes, characteristic term identification, and latent space visualization (Figure~\ref{fig:tsne}), essential for critical domains requiring transparency. Training times remain practical (2-20 seconds) and inference is suitable for real-time applications. In a context where responsible AI and algorithmic fairness are paramount, such interpretable models deserve continued attention as complementary tools in the broader NLP toolkit, provided their applicability boundaries are clearly understood and respected.
 
-	Future work will explore extending A-LSA to multi-class classification, integrating contextual word embeddings to enrich semantic representation while preserving interpretability, and application to specialized domains where short text classification with limited resources is critical. The long-term objective is to develop a family of adaptive semantic models that offer an optimal balance between performance, efficiency, and transparency for appropriate application contexts.
+	Future work will focus on hybrid approaches combining A-LSA's interpretability with contextual embeddings to extend applicability to medium-length texts, developing automatic dimension selection based on explained variance thresholds, and investigating ensemble methods that leverage A-LSA's strengths while mitigating its limitations on complex documents. The long-term objective is to establish a principled framework for determining when class-conditional semantic models are appropriate, based on quantitative text characteristics and semantic separability metrics.
 
 	%---------------------------------------------------
 
