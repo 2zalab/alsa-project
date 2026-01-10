@@ -206,12 +206,11 @@ def plot_tsne_visualization(
 
     print(f"Applying t-SNE to composite latent space (dim={z_composite.shape[1]})...")
 
-    # Apply t-SNE
+    # Apply t-SNE (use defaults for max_iter for compatibility)
     tsne = TSNE(
         n_components=2,
         perplexity=perplexity,
-        random_state=random_state,
-        max_iter=1000
+        random_state=random_state
     )
     z_2d = tsne.fit_transform(z_composite)
 
