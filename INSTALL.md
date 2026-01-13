@@ -1,72 +1,77 @@
-# Installation et Résolution de Problèmes
+# Installation and Troubleshooting
 
-## Installation Rapide
+## Quick Installation
 
-### Étape 1: Installer les dépendances
+### Step 1: Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Ou installer manuellement:
+Or install manually:
 
 ```bash
 pip install numpy scipy scikit-learn nltk pandas tabulate matplotlib seaborn tqdm psutil
 ```
 
-### Étape 2: Télécharger les données NLTK
+### Step 2: Download NLTK data
 
 ```bash
 python -c "import nltk; nltk.download('stopwords')"
 ```
 
-### Étape 3: Vérifier l'installation
+### Step 3: Verify the installation
 
 ```bash
 python test_simple.py
 ```
 
-Si vous voyez "✓ ALL TESTS PASSED!", l'installation est réussie!
+If you see **"✓ ALL TESTS PASSED!"**, the installation was successful.
 
 ---
 
-## Problèmes Courants et Solutions
+## Common Issues and Solutions
 
 ### 1. ImportError: Missing optional dependency 'tabulate'
 
-**Symptôme:**
+**Symptom:**
+
 ```
 ImportError: Missing optional dependency 'tabulate'. Use pip or conda to install tabulate.
 ```
 
 **Solution:**
+
 ```bash
 pip install tabulate
 ```
 
-**Note:** Ce problème a été corrigé dans la dernière version. Le code inclut maintenant un fallback qui crée des tableaux Markdown manuellement si tabulate n'est pas disponible.
+**Note:** This issue has been fixed in the latest version. The code now includes a fallback that manually generates Markdown tables if `tabulate` is not available.
 
 ---
 
 ### 2. ValueError: matmul dimension mismatch
 
-**Symptôme:**
+**Symptom:**
+
 ```
 ValueError: matmul: Input operand 1 has a mismatch in its core dimension 0
 ```
 
-**Solution:** Ce bug a été corrigé dans le commit `95fc4fbdb`. Assurez-vous d'avoir la dernière version:
+**Solution:** This bug was fixed in commit `95fc4fbdb`. Make sure you are using the latest version:
+
 ```bash
 git pull origin claude/implement-adaptive-lsa-Ndewy
 ```
 
-Voir [BUGFIX.md](BUGFIX.md) pour les détails complets.
+See [BUGFIX.md](BUGFIX.md) for full details.
 
 ---
 
 ### 3. ModuleNotFoundError: No module named 'nltk'
 
 **Solution:**
+
 ```bash
 pip install nltk
 python -c "import nltk; nltk.download('stopwords')"
@@ -74,49 +79,52 @@ python -c "import nltk; nltk.download('stopwords')"
 
 ---
 
-### 4. Problèmes de téléchargement de datasets
+### 4. Dataset Download Issues
 
-Si vous avez des problèmes pour télécharger les datasets (20 Newsgroups, etc.) en raison de restrictions réseau:
+If you experience problems downloading datasets (20 Newsgroups, etc.) due to network restrictions:
 
-**Option 1: Téléchargement manuel**
+#### Option 1: Manual download
 
-1. **SMS Spam Collection:**
-   - Télécharger: https://archive.ics.uci.edu/ml/datasets/SMS+Spam+Collection
-   - Extraire dans: `data/sms_spam/SMSSpamCollection`
+1. **SMS Spam Collection**
 
-2. **IMDb Reviews:**
-   - Télécharger: https://ai.stanford.edu/~amaas/data/sentiment/
-   - Extraire dans: `data/imdb/train/` et `data/imdb/test/`
+   * Download: [https://archive.ics.uci.edu/ml/datasets/SMS+Spam+Collection](https://archive.ics.uci.edu/ml/datasets/SMS+Spam+Collection)
+   * Extract to: `data/sms_spam/SMSSpamCollection`
 
-3. **20 Newsgroups:**
-   - Automatiquement téléchargé par scikit-learn la première fois
+2. **IMDb Reviews**
 
-**Option 2: Utiliser les données de test synthétiques**
+   * Download: [https://ai.stanford.edu/~amaas/data/sentiment/](https://ai.stanford.edu/~amaas/data/sentiment/)
+   * Extract to: `data/imdb/train/` and `data/imdb/test/`
+
+3. **20 Newsgroups**
+
+   * Automatically downloaded by scikit-learn on first use
+
+#### Option 2: Use synthetic test data
 
 ```bash
-python test_simple.py  # Utilise des données synthétiques
+python test_simple.py  # Uses synthetic data
 ```
 
 ---
 
-## Vérification de l'Installation
+## Installation Verification
 
-### Test Complet
+### Full Test Suite
 
 ```bash
-# Test unitaires
+# Unit tests
 pytest tests/ -v
 
-# Test simple avec données synthétiques
+# Simple test with synthetic data
 python test_simple.py
 
-# Test sur 20 Newsgroups (nécessite connexion internet)
+# Test on 20 Newsgroups (requires internet connection)
 python experiments/run_newsgroups.py
 ```
 
-### Installation Minimale pour les Tests
+### Minimal Installation for Testing
 
-Si vous voulez juste tester A-LSA sans les datasets réels:
+If you only want to test A-LSA without real datasets:
 
 ```bash
 pip install numpy scipy scikit-learn pandas tabulate
@@ -125,80 +133,85 @@ python test_simple.py
 
 ---
 
-## Structure des Datasets
+## Dataset Structure
 
 ### SMS Spam Collection
+
 ```
 data/sms_spam/
 └── SMSSpamCollection
 ```
 
 ### IMDb Reviews
+
 ```
 data/imdb/
 ├── train/
-│   ├── pos/  (12,500 fichiers .txt)
-│   └── neg/  (12,500 fichiers .txt)
+│   ├── pos/  (12,500 .txt files)
+│   └── neg/  (12,500 .txt files)
 └── test/
-    ├── pos/  (12,500 fichiers .txt)
-    └── neg/  (12,500 fichiers .txt)
+    ├── pos/  (12,500 .txt files)
+    └── neg/  (12,500 .txt files)
 ```
 
 ### 20 Newsgroups
-Téléchargé automatiquement par scikit-learn dans `~/scikit_learn_data/`
+
+Automatically downloaded by scikit-learn into `~/scikit_learn_data/`
 
 ---
 
-## Versions Recommandées
+## Recommended Versions
 
-- Python: 3.8 ou supérieur
-- NumPy: 1.21.0+
-- scikit-learn: 1.0.0+
-- pandas: 1.3.0+
-- tabulate: 0.8.9+
+* Python: 3.8 or higher
+* NumPy: 1.21.0+
+* scikit-learn: 1.0.0+
+* pandas: 1.3.0+
+* tabulate: 0.8.9+
 
 ---
 
 ## Support
 
-Si vous rencontrez d'autres problèmes:
+If you encounter other issues:
 
-1. Vérifiez que toutes les dépendances sont installées: `pip list`
-2. Vérifiez la version de Python: `python --version`
-3. Consultez les logs d'erreur complets
-4. Vérifiez [BUGFIX.md](BUGFIX.md) pour les bugs connus et leurs solutions
+1. Check that all dependencies are installed: `pip list`
+2. Verify your Python version: `python --version`
+3. Review the full error logs
+4. Check [BUGFIX.md](BUGFIX.md) for known issues and fixes
 
 ---
 
-## Installation avec Environnement Virtuel (Recommandé)
+## Installation with a Virtual Environment (Recommended)
 
 ```bash
-# Créer un environnement virtuel
+# Create a virtual environment
 python -m venv alsa-env
 
-# Activer l'environnement
+# Activate the environment
 # Windows:
 alsa-env\Scripts\activate
 # Linux/Mac:
 source alsa-env/bin/activate
 
-# Installer les dépendances
+# Install dependencies
 pip install -r requirements.txt
 
-# Télécharger les données NLTK
+# Download NLTK data
 python -c "import nltk; nltk.download('stopwords')"
 
-# Tester
+# Run tests
 python test_simple.py
 ```
 
 ---
 
-## Mise à Jour
+## Updating
 
-Pour obtenir les dernières corrections de bugs:
+To get the latest bug fixes:
 
 ```bash
-git pull origin claude/implement-adaptive-lsa-Ndewy
+git pull origin main
 pip install -r requirements.txt --upgrade
 ```
+
+---
